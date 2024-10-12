@@ -107,9 +107,9 @@ class _DoclnParser extends Parser {
     }
 
     // Optional, supply if need to chase hyperlinks in page to get all chapter content
-    async fetchChapter(url) {
-        return (await HttpClient.wrapFetch(url)).responseXML;
-    }
+    // async fetchChapter(url) {
+    //     return (await HttpClient.wrapFetch(url)).responseXML;
+    // }
     // Optional, supply if individual chapter titles are not inside the content element
     findChapterTitle(dom) {
         // typical implementation is find node with the Title
@@ -123,10 +123,10 @@ class _DoclnParser extends Parser {
         console.log(dom.querySelector("#chapter-content"));
         return dom.querySelector("#chapter-content");
     };
+
     // Optional, Return elements from page
     // that are to be shown on epub's "information" page
-
     getInformationEpubItemChildNodes(dom) {
-        return [...dom.querySelectorAll("div.book-intro")];
+        return [...dom.querySelectorAll("div.summary-wrapper")];
     }
 }
