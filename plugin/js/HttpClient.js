@@ -52,9 +52,18 @@ class FetchErrorHandler {
     }
 
     promptUserForRetry(url, wrapOptions, response, failError) {
-        let msg = new Error(new Error(this.makeFailCanRetryMessage(url, response.status)));
+        let msg;
+        if (wrapOptions.retry.HTTP === 403) { 
+            msg = new Error(chrome.i18n.getMessage("warning403ErrorResponse", new URL(response.url).hostname) + this.makeFailCanRetryMessage(url, response.status));
+        } else {
+            msg = new Error(new Error(this.makeFailCanRetryMessage(url, response.status)));
+        }
         let cancelLabel = this.getCancelButtonText();
         return new Promise(function(resolve, reject) {
+            if (wrapOptions.retry.HTTP === 403) {
+                msg.openurl = url;
+                msg.blockurl = url;
+            }
             msg.retryAction = () => resolve(HttpClient.wrapFetchImpl(url, wrapOptions));
             msg.cancelAction = () => reject(failError);
             msg.cancelLabel = cancelLabel;
@@ -73,14 +82,7 @@ class FetchErrorHandler {
         let retryDelay = [120, 60, 30, 15];
         switch(response.status) {
         case 403:
-            if (confirm(chrome.i18n.getMessage("warning403ErrorResponse", new URL(response.url).hostname))) {
-                // Open site
-                window.open(new URL(response.url), "_blank").focus();
-                alert(chrome.i18n.getMessage("wait403ErrorResponse", new URL(response.url).hostname));
-            } else {
-                // Do nothing!
-            }
-            return {retryDelay: [1], promptUser: true};
+            return {retryDelay: [1], promptUser: true, HTTP: 403};
         case 429:
             FetchErrorHandler.show429Error(response);
             return {retryDelay: retryDelay, promptUser: true};
@@ -178,6 +180,10 @@ class HttpClient {
     }
 
     static async wrapFetchImpl(url, wrapOptions) {
+        if (BlockedHostNames.has(new URL(url).hostname)) {
+            let skipurlerror = new Error("!Blocked! URL skipped because the user blocked the site");
+            return wrapOptions.errorHandler.onFetchError(url, skipurlerror);
+        }
         await HttpClient.setPartitionCookies(url);
         if (wrapOptions.fetchOptions == null) {
             wrapOptions.fetchOptions = HttpClient.makeOptions();
@@ -207,35 +213,40 @@ class HttpClient {
     }
 
     static async setPartitionCookies(url) {
-        if (!util.isFirefox()) {
-            // get partitionKey in the form of https://<site name>.<tld>
-            let parsedUrl = new URL(url);
+        // get partitionKey in the form of https://<site name>.<tld>
+        let parsedUrl = new URL(url);
+        //keep old code for reference in case it changes again
+        //let topLevelSite = parsedUrl.protocol + "//" + parsedUrl.hostname;
+
+        try {
+            //  get all cookie from the site which use the partitionKey (e.g. cloudflare)
             //keep old code for reference in case it changes again
-            //let topLevelSite = parsedUrl.protocol + "//" + parsedUrl.hostname;
-
-            try {
-                //  get all cookie from the site which use the partitionKey (e.g. cloudflare)
-                //keep old code for reference in case it changes again
-                //let cookies = await chrome.cookies.getAll({partitionKey: {topLevelSite: topLevelSite}});
-                
-                //set domain to the highest level from the website as all subdomains are included #1447 #1445
-                let urlparts = parsedUrl.hostname.split(".");
-                let cookies = await chrome.cookies.getAll({domain: urlparts[urlparts.length-2]+"."+urlparts[urlparts.length-1],partitionKey: {}});
-
-                //create new cookies for the site without the partitionKey
-                //cookies without the partitionKey get sent with fetch
-                cookies.forEach(element => chrome.cookies.set({
-                    domain: element.domain,
-                    url: "https://"+element.domain.substring(1),
-                    name: element.name, 
-                    value: element.value
-                }));
-            } catch {
-                // Probably running browser that doesn't support partitionKey, e.g. Kiwi
-            } 
-        }
+            //let cookies = await chrome.cookies.getAll({partitionKey: {topLevelSite: topLevelSite}});
+            
+            //set domain to the highest level from the website as all subdomains are included #1447 #1445
+            let urlparts = parsedUrl.hostname.split(".");
+            let cookies = "";
+            if (!util.isFirefox()) {
+                cookies = await chrome.cookies.getAll({domain: urlparts[urlparts.length-2]+"."+urlparts[urlparts.length-1],partitionKey: {}});
+            }else{
+                cookies = await browser.cookies.getAll({domain: urlparts[urlparts.length-2]+"."+urlparts[urlparts.length-1],partitionKey: {}});
+            }
+            cookies = cookies.filter(item => item.partitionKey != undefined);
+            //create new cookies for the site without the partitionKey
+            //cookies without the partitionKey get sent with fetch
+            cookies.forEach(element => chrome.cookies.set({
+                domain: element.domain,
+                url: "https://"+element.domain.substring(1),
+                name: element.name, 
+                value: element.value
+            }));
+        } catch {
+            // Probably running browser that doesn't support partitionKey, e.g. Kiwi
+        } 
     }
 }
+
+let BlockedHostNames = new Set();
 
 class FetchResponseHandler {
     isHtml() {
