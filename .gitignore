@@ -5,3 +5,4 @@ eslint/index.csv
 node_modules
 plugin/jszip/dist/jszip.min.js
 package-lock.json
+.DS_Store
