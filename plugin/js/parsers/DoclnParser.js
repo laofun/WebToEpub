@@ -102,12 +102,14 @@ class _DoclnParser extends Parser {
     // Optional, supply if need to modify DOM before normal processing steps
     preprocessRawDom(chapterDom) {
         // remove ads
-        util.removeChildElementsMatchingCss(chapterDom, "#chapter-content .flex");
-        util.removeChildElementsMatchingCss(chapterDom, "#chapter-content div");
-        util.removeChildElementsMatchingCss(chapterDom, "#chapter-content a");
+        util.removeChildElementsMatchingCss(chapterDom, "#chapter-content .flex, #chapter-content div, #chapter-content a");
         util.resolveLazyLoadedImages(chapterDom, "#chapter-content img");
     }
 
+    // Optional, supply if need to chase hyperlinks in page to get all chapter content
+    async fetchChapter(url) {
+        return (await HttpClient.wrapFetch(url)).responseXML;
+    }
     // Optional, supply if individual chapter titles are not inside the content element
     findChapterTitle(dom) {
         // typical implementation is find node with the Title
