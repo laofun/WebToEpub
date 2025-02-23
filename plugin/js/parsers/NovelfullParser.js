@@ -22,11 +22,13 @@ parserFactory.register("novelactive.org", () => new NovelfullParser());
 parserFactory.register("novelbin.com", () => new NovelfullParser());
 parserFactory.register("novelbin.me", () => new NovelfullParser());
 parserFactory.register("novelbin.net", () => new NovelfullParser());
+parserFactory.register("novelbin.org", () => new NovelfullParser());
 //dead url
 parserFactory.register("novelebook.net", () => new NovelfullParser());
 parserFactory.register("novelfull.com", () => new NovelfullParser());
 parserFactory.register("novelfull.net", () => new NovelfullParser());
 parserFactory.register("novelfullbook.com", () => new NovelfullParser());
+parserFactory.register("novelfulll.com", () => new NovelfullParser());
 //dead url
 parserFactory.register("novelhulk.net", () => new NovelfullParser());
 parserFactory.register("novelmax.net", () => new NovelfullParser());
@@ -76,8 +78,13 @@ class NovelfullParser extends Parser{
         let link = dom.querySelector("li.last a");
         let urls = [];
         if (link != null) {
-            let limit = link.getAttribute("data-page") || "-1";
-            limit = parseInt(limit) + 1;
+            let limit = link.getAttribute("data-page");
+            if (limit == null)
+            {
+                let url = new URL(link.href);
+                limit = url.searchParams.get("page_num") || null;
+            }
+            limit = parseInt(limit || "-1") + 1;
             for (let i = 1; i <= limit; ++i) {
                 urls.push(NovelfullParser.buildUrlForTocPage(link, i));
             }
@@ -90,6 +97,8 @@ class NovelfullParser extends Parser{
         if (hostname === "freenovelsread.com")
         {
             link.pathname = link.pathname.split("/")[1] + "/" + i;
+        } else if (hostname === "novelfulll.com") {
+            link.search = `?page_num=${i}`;
         } else {
             link.search = `?page=${i}&per-page=50`;
         }
