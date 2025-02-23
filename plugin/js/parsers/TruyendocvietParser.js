@@ -36,7 +36,7 @@ class TruyendocvietParser extends Parser {
             return [`${tocBaseUrl}/1.html`];
         }
         // Có thể thay thế console.log bằng log debug nếu cần.
-        console.log(`getUrlsOfTocPages: ${totalPages} pages`);
+        console.log(`truyendocviet.vn: Total chapters: ${totalChapters}, Total pages: ${totalPages} pages`);
 
         return Array.from({ length: totalPages }, (_, i) => `${tocBaseUrl}/${i + 1}.html`);
     }
